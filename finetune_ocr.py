@@ -5,6 +5,8 @@ from jiwer import cer, wer
 from dataset.washington_dataset import WashingtonDataset, collate_fn, get_line_ids, get_transcriptions, special_token_map
 from model.ocr_model import load_trocr_model
 from tqdm import tqdm
+import random
+import numpy as np
 
 def finetune_trocr():
     """
@@ -51,10 +53,10 @@ def finetune_trocr():
     model.to(device)
 
     # Optimizer
-    optimizer = AdamW(model.parameters(), lr=5e-5)
+    optimizer = AdamW(model.parameters(), lr=5e-5, weight_decay=1e-5)
 
     # Training loop
-    num_epochs = 10
+    num_epochs = 15
     for epoch in range(num_epochs):
         # Training phase
         model.train()
@@ -76,7 +78,7 @@ def finetune_trocr():
         all_pred_texts = []
         all_label_texts = []
         with torch.inference_mode():
-            for batch in tqdm(val_loader, desc="Validation Epoch {epoch}"):
+            for batch in tqdm(val_loader, desc=f"Validation Epoch {epoch}"):
                 pixel_values = batch["pixel_values"].to(device, non_blocking=True)
                 outputs = model.generate(pixel_values)
                 pred_texts = processor.batch_decode(outputs, skip_special_tokens=True)
@@ -88,11 +90,16 @@ def finetune_trocr():
         avg_wer = wer(all_label_texts, all_pred_texts)
         print(f"Epoch {epoch + 1}/{num_epochs}, Validation CER: {avg_cer:.4f}, WER: {avg_wer:.4f}")
 
-        num_to_check = 4
-        for i, (label, pred) in enumerate(zip(all_label_texts, all_pred_texts)):
-            print(f"Label '{label}' | Prediction: '{pred}'")
-            if i == 4:
-                break
+        num_to_check = 5
+        idxs = random.sample(range(len(all_label_texts)), num_to_check)
+        for i in idxs:
+            label = all_label_texts[i]
+            pred = all_pred_texts[i]
+            print("-"*50)
+            print(f"Label     : '{label}'")
+            print(f"Prediction: '{pred}'")
+            print("-"*50)
+
 
     # Save the finetuned model and processor
     output_dir = "finetuned_trocr"

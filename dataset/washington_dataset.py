@@ -5,10 +5,28 @@ from torch.utils.data import Dataset
 
 # Mapping for special tokens to standard characters
 special_token_map = {
+    "s_0th" : "0th",
+    "s_1st" : "1st",
+    "s_2nd" : "2nd",
+    "s_3rd" : "3rd",
+    "s_4th" : "4th",
+    "s_5th" : "5th",
+    "s_6th" : "6th",
+    "s_7th" : "7th",
+    "s_8th" : "8th",
+    "s_9th" : "9th",
     "s_pt": ".",
     "s_cm": ",",
     "s_qm": "?",
     "s_em": "!",
+    "s_et": "&",
+    "s_qt": "'",
+    "s_qo": ":",
+    "s_mi": "_",
+    "s_sq": ";",
+    "s_bl": "|",
+    "s_br": "-",
+    "s_GW": "GW",
     "s_s": "s",
     "s_0": "0",
     "s_1": "1",
@@ -153,7 +171,8 @@ if __name__ == "__main__":
         train_line_ids = get_line_ids(sets_dir, fold, 'train')
         transcriptions = get_transcriptions(transcription_file)
         dataset = WashingtonDataset(train_line_ids, image_dir, transcriptions, special_token_map)
-        image, transcription = dataset[0]
-        print(f"Dataset test - Sample image size: {image.size}, transcription: '{transcription}'")
+        for i, (image, transcription) in enumerate(dataset):
+            pass
+            print(f"Dataset test - Sample image size: {image.size}, transcription: '{transcription}'")
     else:
         print("Dataset test skipped: Required data directories/files not found.")
