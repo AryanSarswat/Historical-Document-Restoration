@@ -100,6 +100,11 @@ class WashingtonDataset(Dataset):
         self.transcriptions = transcriptions
         self.special_token_map = special_token_map
 
+        # Process
+        raw_transcriptions = [self.transcriptions[line_id] for line_id in self.line_ids]
+        self.text = [transcription_to_text(transcription, special_token_map) for transcription in raw_transcriptions]
+
+
     def __len__(self):
         return len(self.line_ids)
 
@@ -116,8 +121,7 @@ class WashingtonDataset(Dataset):
         line_id = self.line_ids[index]
         image_path = os.path.join(self.image_dir, f"{line_id}.png")
         image = Image.open(image_path).convert("RGB")  # TrOCR expects RGB images
-        raw_transcription = self.transcriptions[line_id]
-        transcription = transcription_to_text(raw_transcription, self.special_token_map)
+        transcription = self.text[index]
         return image, transcription
 
 def collate_fn(batch, processor):
@@ -136,6 +140,7 @@ def collate_fn(batch, processor):
     pixel_values = processor(images=images, return_tensors="pt").pixel_values
     # Process text (with padding)
     labels = processor.tokenizer(transcriptions, padding="max_length", return_tensors="pt").input_ids
+    labels = torch.where(labels == processor.tokenizer.pad_token_id, -100, labels)
     return {"pixel_values": pixel_values, "labels": labels}
 
 if __name__ == "__main__":

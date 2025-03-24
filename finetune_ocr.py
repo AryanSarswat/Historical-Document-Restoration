@@ -33,15 +33,15 @@ def finetune_trocr():
     # Create data loaders
     train_loader = DataLoader(
         train_dataset,
-        batch_size=8,
-        num_workers=8,
+        batch_size=10,
+        num_workers=10,
         shuffle=True,
         collate_fn=lambda batch: collate_fn(batch, processor)
     )
     val_loader = DataLoader(
         val_dataset,
-        batch_size=8,
-        num_workers=8,
+        batch_size=10,
+        num_workers=10,
         shuffle=False,
         collate_fn=lambda batch: collate_fn(batch, processor)
     )
@@ -78,15 +78,21 @@ def finetune_trocr():
         with torch.inference_mode():
             for batch in tqdm(val_loader, desc="Validation Epoch {epoch}"):
                 pixel_values = batch["pixel_values"].to(device, non_blocking=True)
-                outputs = model.generate(pixel_values, max_new_tokens=32)
+                outputs = model.generate(pixel_values)
                 pred_texts = processor.batch_decode(outputs, skip_special_tokens=True)
-                label_texts = processor.batch_decode(batch["labels"], skip_special_tokens=True)
+                conv = torch.where(batch["labels"] == -100, processor.tokenizer.pad_token_id, batch["labels"])
+                label_texts = processor.batch_decode(conv, skip_special_tokens=True)
                 all_pred_texts.extend(pred_texts)
                 all_label_texts.extend(label_texts)
         avg_cer = cer(all_label_texts, all_pred_texts)
         avg_wer = wer(all_label_texts, all_pred_texts)
         print(f"Epoch {epoch + 1}/{num_epochs}, Validation CER: {avg_cer:.4f}, WER: {avg_wer:.4f}")
-        print(f"Label '{all_label_texts[0]}' | Prediction: '{all_pred_texts[0]}'")
+
+        num_to_check = 4
+        for i, (label, pred) in enumerate(zip(all_label_texts, all_pred_texts)):
+            print(f"Label '{label}' | Prediction: '{pred}'")
+            if i == 4:
+                break
 
     # Save the finetuned model and processor
     output_dir = "finetuned_trocr"
