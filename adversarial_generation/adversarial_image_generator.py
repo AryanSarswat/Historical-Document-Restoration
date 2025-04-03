@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import random
+import os
 
 
 class AdversarialImageGenerator:
@@ -22,9 +23,9 @@ class AdversarialImageGenerator:
         num_blobs = 3
         for _ in range(num_blobs):
             x, y = np.random.randint(0, img.shape[1]), np.random.randint(0, img.shape[0])
-            radius = np.random.randint(10, 25)  
+            radius = np.random.randint(10, 20)  
             cv2.circle(ink_spill, (x, y), radius, 255, -1)
-        ink_spill = cv2.GaussianBlur(ink_spill, (25, 25), 10)
+        ink_spill = cv2.GaussianBlur(ink_spill, (3, 3), 7)
         inked_image = cv2.bitwise_or(img, ink_spill)
         return inked_image
     
@@ -32,10 +33,10 @@ class AdversarialImageGenerator:
         ink_spill = np.zeros_like(img)
         num_blobs = 2
         for _ in range(num_blobs):
-            x, y = np.random.randint(10, img.shape[1]), np.random.randint(10, img.shape[0])
-            radius = np.random.randint(10, 15)  
+            x, y = np.random.randint(0, img.shape[1]), np.random.randint(0, img.shape[0])
+            radius = np.random.randint(10, 20)  
             cv2.circle(ink_spill, (x, y), radius, 255, -1)
-        ink_spill = cv2.GaussianBlur(ink_spill, (25, 25), 10)
+        ink_spill = cv2.GaussianBlur(ink_spill, (3, 3), 7)
         ink_spill = cv2.threshold(ink_spill, 200, 255, cv2.THRESH_BINARY)[1]  # Convert to pure black and white
         ink_spill = 255 - ink_spill     
         inked_image = cv2.bitwise_and(img, ink_spill)
@@ -66,22 +67,40 @@ class AdversarialImageGenerator:
     def target_region(self, img):
         inverted_image = cv2.bitwise_not(img)
         contours, _ = cv2.findContours(inverted_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        char_index = random.randint(0, len(contours))  # Change this to select a different character
+        char_index = random.randint(0, len(contours) - 1)  # Change this to select a different character
         x, y, w, h = cv2.boundingRect(contours[char_index])
         char_region = img[y:y+h, x:x+w]
         return char_region, x, y, w, h
 
-
 generator = AdversarialImageGenerator()
-img_str = '../washingtondb/data/line_images_normalized/270-01.png'
-img = cv2.imread(img_str, 0)
-char_region, x, y, w, h = generator.target_region(img)
-char_region = generator.ink_spill(char_region)
-modified_image = img.copy()
-modified_image[y:y+h, x:x+w] = char_region
+dir = '/Users/rishabmtr/GeorgiaTechCS/CS8803/CS8803-HUM/washingtondb/data/line_images_normalized/'
+output_dir = '/Users/rishabmtr/GeorgiaTechCS/CS8803/CS8803-HUM/adversarial_generation/combined'
+for filename in os.listdir(dir):
+    img_str = os.path.join(dir, filename)
+    if filename == '.DS_Store':
+        continue
+    img = cv2.imread(img_str, 0)
+    modified_image = img.copy()
+    for function in ['erode', 'morphological-blackhat', 'ink-fade', 'ink-spill', 'age-parchment']:
+        for i in range(0, 3):
+            char_region, x, y, w, h = generator.target_region(img)
+            if function == 'erode':
+                char_region = generator.erode(char_region)
+            elif function == 'morphological-blackhat':
+                char_region = generator.morphological_blackhat(char_region)
+            elif function == 'ink-fade':
+                char_region = generator.ink_fade(char_region)
+            elif function == 'ink-spill':
+                char_region = generator.ink_spill(char_region)
+            modified_image[y:y+h, x:x+w] = char_region
+    modified_image = generator.age_parchment(modified_image)
+    output_filename = filename.split(".")[0]
+    output_filename += '-combined.png'
+    output_filename = os.path.join(output_dir, output_filename)
+    cv2.imwrite(output_filename, modified_image)
 
-cv2.imwrite('line_example.png', modified_image)
+
+
 
 
 
