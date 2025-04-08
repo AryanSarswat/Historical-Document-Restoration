@@ -33,6 +33,4 @@ if __name__ == "__main__":
     # Test loading the model and processor
     model, processor = load_trocr_model()
 
-
-
     print("Model test - Model and processor loaded successfully.")

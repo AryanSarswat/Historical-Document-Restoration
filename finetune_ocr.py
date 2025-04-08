@@ -53,7 +53,7 @@ def finetune_trocr():
     model.to(device)
 
     # Optimizer
-    optimizer = AdamW(model.parameters(), lr=5e-5, weight_decay=1e-5)
+    optimizer = AdamW(model.parameters(), lr=2e-5, weight_decay=1e-6)
 
     # Training loop
     num_epochs = 15
