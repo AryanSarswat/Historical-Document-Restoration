@@ -10,7 +10,7 @@ import os
 
 from pix2pix_model import UNetGenerator, PatchDiscriminator
 
-# Add damaged and ground truth images to folders data/damaged and data/clean
+# Add damaged and ground truth images to folders data/damaged and data/clean for training
 
 class RestorationDataset(Dataset):
     def __init__(self, damaged_dir, clean_dir, transform=None):

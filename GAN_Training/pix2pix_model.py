@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+# GAN model for generating images without damage
 
 class UNetGenerator(nn.Module):
     def __init__(self, in_channels=3, out_channels=3, features=64):
