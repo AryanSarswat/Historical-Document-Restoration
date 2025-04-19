@@ -35,22 +35,20 @@ class RestorationDataset(Dataset):
         if self.transform:
             damaged = self.transform(damaged)
             clean = self.transform(clean)
-        return damaged, clean, original_size
+        return damaged, clean, original_size, self.damaged_images[idx], self.clean_images[idx]
 
 
-def train(dataloader, generator, discriminator, optimizerG, optimizerD, bce_loss, l1_loss, device, val_loader, num_epochs=5):
+def train(dataloader, generator, discriminator, optimizerG, optimizerD, bce_loss, l1_loss, device, val_loader, num_epochs=100):
 
-    os.makedirs("outputs/fake", exist_ok=True)
-    os.makedirs("outputs/real", exist_ok=True)
-    os.makedirs("outputs/eval_fake", exist_ok=True)
-    os.makedirs("outputs/eval_real", exist_ok=True)
+    os.makedirs("outputs/train_restored", exist_ok=True)
+    os.makedirs("outputs/eval_restored", exist_ok=True)
 
     for epoch in range(num_epochs):
         generator.train()
         discriminator.train()
         lossD = 0.0
         lossG = 0.0
-        for i, (damaged, clean, original_size) in enumerate(dataloader):
+        for i, (damaged, clean, original_size, damaged_name, clean_name) in enumerate(dataloader):
             damaged = damaged.to(device)
             clean = clean.to(device)
 
@@ -77,14 +75,11 @@ def train(dataloader, generator, discriminator, optimizerG, optimizerD, bce_loss
             optimizerG.step()
 
             # Save multiple samples every 20 batches
-            if i % 20 == 0:
-                for j in range(min(3, fake.size(0))):
+            if epoch == 0 or epoch % 10 == 9:
+                for j in range(fake.size(0)):
                     unsuq_fake = fake[j].cpu().unsqueeze(0)
                     resized_fake = nn.functional.interpolate(unsuq_fake, size=(original_size[1][j], original_size[0][j]), mode='bilinear')
-                    save_image(resized_fake, f"outputs/fake/epoch{epoch}_batch{i}_sample{j}.png")
-                    unsuq_clean = clean[j].cpu().unsqueeze(0)
-                    resized_clean = nn.functional.interpolate(unsuq_clean, size=(original_size[1][j], original_size[0][j]), mode='bilinear')
-                    save_image(resized_clean, f"outputs/real/epoch{epoch}_batch{i}_sample{j}.png")
+                    save_image(resized_fake, f"outputs/train_restored/{clean_name[j][0:6]}_epoch{epoch}.png")
 
         print(f"Epoch [{epoch}/{num_epochs}] Loss D: {lossD.item():.4f}, Loss G: {lossG.item():.4f}")
 
@@ -97,7 +92,7 @@ def train(dataloader, generator, discriminator, optimizerG, optimizerD, bce_loss
         l1_loss_fn = nn.L1Loss()
 
         with torch.no_grad():
-            for i, (damaged, clean, original_size) in enumerate(dataloader):
+            for i, (damaged, clean, original_size, damaged_name, clean_name) in enumerate(val_loader):
                 damaged = damaged.to(device)
                 clean = clean.to(device)
                 fake = generator(damaged)
@@ -107,51 +102,14 @@ def train(dataloader, generator, discriminator, optimizerG, optimizerD, bce_loss
                 total_l1_loss += batch_l1
                 total_batches += 1
 
-                for j in range(min(3, fake.size(0))):
-                    unsuq_fake = fake[j].cpu().unsqueeze(0)
-                    resized_fake = nn.functional.interpolate(unsuq_fake, size=(original_size[1][j], original_size[0][j]), mode='bilinear')
-                    save_image(resized_fake, f"outputs/eval_fake/epoch{epoch}_sample{i}_{j}.png")
-                    unsuq_clean = clean[j].cpu().unsqueeze(0)
-                    resized_clean = nn.functional.interpolate(unsuq_clean, size=(original_size[1][j], original_size[0][j]), mode='bilinear')
-                    save_image(resized_clean,f"outputs/eval_real/epoch{epoch}_sample{i}_{j}.png")
+                if epoch == 0 or epoch % 10 == 9:
+                    for j in range(fake.size(0)):
+                        unsuq_fake = fake[j].cpu().unsqueeze(0)
+                        resized_fake = nn.functional.interpolate(unsuq_fake, size=(original_size[1][j], original_size[0][j]), mode='bilinear')
+                        save_image(resized_fake, f"outputs/eval_restored/{clean_name[j][0:6]}_epoch{epoch}.png")
 
         avg_l1_loss = total_l1_loss / total_batches
         print(f"Validation L1 Loss: {avg_l1_loss:.4f}")
-
-
-def evaluate(dataloader, generator, device):
-    generator.eval()
-    os.makedirs("outputs/eval_fake", exist_ok=True)
-    os.makedirs("outputs/eval_real", exist_ok=True)
-
-    total_l1_loss = 0.0
-    total_batches = 0
-    l1_loss_fn = nn.L1Loss()
-
-    with torch.no_grad():
-        for i, (damaged, clean, original_size) in enumerate(val_loader):
-            damaged = damaged.to(device)
-            clean = clean.to(device)
-            fake = generator(damaged)
-
-            # Accumulate L1 loss
-            batch_l1 = l1_loss_fn(fake, clean).item()
-            total_l1_loss += batch_l1
-            total_batches += 1
-
-            for j in range(min(3, fake.size(0))):
-                unsuq_fake = fake[j].cpu().unsqueeze(0)
-                resized_fake = nn.functional.interpolate(unsuq_fake, size=(original_size[1][j], original_size[0][j]), mode='bilinear')
-                save_image(resized_fake, f"outputs/eval_fake/sample{i}_{j}.png")
-                unsuq_clean = clean[j].cpu().unsqueeze(0)
-                resized_clean = nn.functional.interpolate(unsuq_clean, size=(original_size[1][j], original_size[0][j]), mode='bilinear')
-                save_image(resized_clean,f"outputs/eval_real/sample{i}_{j}.png")
-
-            if i >= 2:
-                break  # Save only a few batches for evaluation preview
-
-    avg_l1_loss = total_l1_loss / total_batches
-    print(f"Validation L1 Loss: {avg_l1_loss:.4f}")
 
 
 if __name__ == "__main__":
