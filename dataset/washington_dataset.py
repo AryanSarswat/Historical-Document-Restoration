@@ -2,6 +2,7 @@ import os
 from PIL import Image
 import torch
 from torch.utils.data import Dataset
+import numpy as np
 
 # Mapping for special tokens to standard characters
 special_token_map = {

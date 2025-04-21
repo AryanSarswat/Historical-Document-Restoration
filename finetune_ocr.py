@@ -3,10 +3,11 @@ from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from jiwer import cer, wer
 from dataset.washington_dataset import WashingtonDataset, collate_fn, get_line_ids, get_transcriptions, special_token_map
-from model.ocr_model import load_trocr_model
+from transformers import VisionEncoderDecoderModel, TrOCRProcessor
 from tqdm import tqdm
 import random
 import numpy as np
+from evaluate_images import main
 
 def finetune_trocr():
     """
@@ -35,14 +36,14 @@ def finetune_trocr():
     # Create data loaders
     train_loader = DataLoader(
         train_dataset,
-        batch_size=10,
+        batch_size=32,
         num_workers=10,
         shuffle=True,
         collate_fn=lambda batch: collate_fn(batch, processor)
     )
     val_loader = DataLoader(
         val_dataset,
-        batch_size=10,
+        batch_size=32,
         num_workers=10,
         shuffle=False,
         collate_fn=lambda batch: collate_fn(batch, processor)
@@ -53,16 +54,19 @@ def finetune_trocr():
     model.to(device)
 
     # Optimizer
-    optimizer = AdamW(model.parameters(), lr=2e-5, weight_decay=1e-6)
+    optimizer = AdamW(model.parameters(), lr=2e-5, weight_decay=1e-5)
 
     # Training loop
-    num_epochs = 15
+    num_epochs = 10
+
+    best_cer = 10
     for epoch in range(num_epochs):
         # Training phase
         model.train()
         total_train_loss = 0
         for batch in tqdm(train_loader, desc=f"Training {epoch}"):
             pixel_values = batch["pixel_values"].to(device, non_blocking=True)
+            print(pixel_values.shape)
             labels = batch["labels"].to(device, non_blocking=True)
             outputs = model(pixel_values=pixel_values, labels=labels)
             loss = outputs.loss
@@ -90,6 +94,13 @@ def finetune_trocr():
         avg_wer = wer(all_label_texts, all_pred_texts)
         print(f"Epoch {epoch + 1}/{num_epochs}, Validation CER: {avg_cer:.4f}, WER: {avg_wer:.4f}")
 
+        if avg_cer < best_cer:
+            best_cer = avg_cer
+            output_dir = "best_finetuned_trocr"
+            model.save_pretrained(output_dir)
+            processor.save_pretrained(output_dir)
+
+
         num_to_check = 5
         idxs = random.sample(range(len(all_label_texts)), num_to_check)
         for i in idxs:
@@ -106,6 +117,7 @@ def finetune_trocr():
     model.save_pretrained(output_dir)
     processor.save_pretrained(output_dir)
     print(f"Finetuned model and processor saved to {output_dir}")
+    main(model, processor)
 
 if __name__ == "__main__":
     # Test the finetuning process
