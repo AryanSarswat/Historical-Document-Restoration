@@ -166,9 +166,3 @@ python evaluate_restoration.py \
 - Fischer, A., Keller, A., Frinken, V., & Bunke, H. (2012). Lexicon-Free Handwritten Word Spotting Using Character HMMs. *Pattern Recognition Letters*, 33(7), 934-942.
 - Li, M., et al. (2023). TrOCR: Transformer-based Optical Character Recognition with Pre-trained Models. *AAAI*.
 - Isola, P., Zhu, J.-Y., Zhou, T., & Efros, A. A. (2017). Image-to-Image Translation with Conditional Adversarial Networks. *CVPR*.
-
-## Contributors
-
-- **Aryan Sarswat** ([GitHub](https://github.com/AryanSarswat))
-- **Rishab Mitra**
-- **Mert Us**
